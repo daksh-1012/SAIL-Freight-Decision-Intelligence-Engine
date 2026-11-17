@@ -905,3 +905,159 @@ label,
   font-size: 14px;
   font-weight: 600;
 }
+
+/* Scenario & Stress Analysis — compact horizontal layout */
+.panel .scenario-controls {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  align-items: stretch;
+  gap: 14px !important;
+  width: 100%;
+  margin: 18px 0 16px !important;
+}
+
+.panel .scenario-control {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  padding: 16px 18px !important;
+  border: 1px solid #263449;
+  border-radius: 12px;
+  background: #0b1322;
+}
+
+.panel .scenario-control-heading {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 7px;
+  margin: 0 0 12px !important;
+}
+
+.panel .scenario-control-heading label {
+  color: #829bbd;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.055em;
+}
+
+.panel .scenario-control-heading strong {
+  color: #f4f7fc;
+  font-size: 1.25rem;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.panel .scenario-control input[type="range"] {
+  display: block;
+  width: 100%;
+  margin: 8px 0 10px !important;
+  accent-color: #8fc2ff;
+  cursor: pointer;
+}
+
+.panel .scenario-range {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  color: #9aabc2;
+  font-size: 0.75rem;
+}
+
+.panel .scenario-control > small {
+  display: block;
+  min-height: 1.1em;
+  margin-top: 9px !important;
+  color: #91a3bd;
+  font-size: 0.72rem;
+  line-height: 1.4;
+}
+
+.panel .scenario-apply-row {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: wrap;
+  justify-content: flex-start !important;
+  align-items: center;
+  gap: 10px !important;
+  margin: 14px 0 20px !important;
+}
+
+/* Override the project's generic analyze-button styles for this section. */
+.panel .scenario-apply-row .scenario-apply-button,
+.panel .scenario-apply-row .scenario-reset-button {
+  display: inline-flex !important;
+  width: auto !important;
+  min-width: 0 !important;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  margin: 0 !important;
+  padding: 0 19px !important;
+  border-radius: 9px !important;
+  font-family: inherit;
+  font-size: 0.82rem !important;
+  font-weight: 750 !important;
+  letter-spacing: 0.035em;
+  line-height: 1;
+  cursor: pointer;
+  transition: transform 140ms ease, background 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.panel .scenario-apply-row .scenario-apply-button {
+  border: 1px solid #20c568 !important;
+  background: #20c568 !important;
+  color: #06150d !important;
+  box-shadow: 0 4px 12px rgba(32, 197, 104, 0.16);
+}
+
+.panel .scenario-apply-row .scenario-apply-button:hover:not(:disabled) {
+  background: #31d879 !important;
+  border-color: #31d879 !important;
+  box-shadow: 0 6px 16px rgba(32, 197, 104, 0.24);
+  transform: translateY(-1px);
+}
+
+.panel .scenario-apply-row .scenario-reset-button {
+  border: 1px solid #40516a !important;
+  background: #172337 !important;
+  color: #dce7f6 !important;
+}
+
+.panel .scenario-apply-row .scenario-reset-button:hover:not(:disabled) {
+  border-color: #8fc2ff !important;
+  background: #22334d !important;
+  transform: translateY(-1px);
+}
+
+.panel .scenario-apply-row button:focus-visible {
+  outline: 2px solid #8fc2ff;
+  outline-offset: 3px;
+}
+
+.panel .scenario-apply-row button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.panel .scenario-apply-row .error-message {
+  flex-basis: 100%;
+  margin: 4px 0 0 !important;
+  text-align: left;
+}
+
+@media (max-width: 760px) {
+  .panel .scenario-controls {
+    grid-template-columns: 1fr !important;
+  }
+  .panel .scenario-apply-row {
+    align-items: stretch;
+  }
+  .panel .scenario-apply-row .scenario-apply-button,
+  .panel .scenario-apply-row .scenario-reset-button {
+    flex: 1 1 100%;
+  }
+}

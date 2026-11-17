@@ -458,5 +458,23 @@ def run_decision(cargo_quantity, origin, destination):
             f"{timing['recommendation'].lower()}, "
             f"while the contract strategy engine recommends "
             f"{contract_strategy['recommendation'].lower()}."
-        )
+        ),
+
+        "scenario_inputs": {
+            "cargo_quantity": cargo_quantity,
+            "current_rate": current_rate,
+            "forecast_7": day_7,
+            "forecast_14": day_14,
+            "distance_nm": float(route["distance_nm"]),
+            "vessel_speed": best_vessel["speed"],
+            "fuel_price": 600,
+            "fuel_consumption": 35,
+            "port_cost": float(port["handling_rate"]),
+            "waiting_days": float(port["waiting_days"]),
+            "demurrage_per_day": 25000,
+            "probability_7": risk["probability_wait_cheaper"],
+            "probability_14": risk_14_result["probability_wait_cheaper"],
+            "risk_7": risk_7,
+            "risk_14": risk_14
+        }
     }

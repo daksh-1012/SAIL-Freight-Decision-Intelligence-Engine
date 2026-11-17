@@ -12,9 +12,22 @@ function App() {
   const [contractPreference, setContractPreference] =
     useState("Let system optimize");
 
+  // Scenario stress-test controls and independently recalculated results.
+  const [freightChange, setFreightChange] = useState(10);
+  const [fuelChange, setFuelChange] = useState(15);
+  const [waitingChange, setWaitingChange] = useState(2);
+  const [scenarioResults, setScenarioResults] = useState(null);
+  const [scenarioLoading, setScenarioLoading] = useState(false);
+  const [scenarioError, setScenarioError] = useState("");
+
   const analyzeVoyage = async () => {
     setLoading(true);
     setError("");
+    setScenarioResults(null);
+    setScenarioError("");
+    setFreightChange(10);
+    setFuelChange(15);
+    setWaitingChange(2);
 
     try {
       const params = new URLSearchParams({
@@ -47,9 +60,78 @@ function App() {
     }
   };
 
+  const applyScenario = async () => {
+    if (!data?.scenario_inputs) {
+      setScenarioError("Scenario inputs are missing. Analyze the voyage again.");
+      return;
+    }
+
+    setScenarioLoading(true);
+    setScenarioError("");
+
+    try {
+      const payload = {
+        ...data.scenario_inputs,
+        freight_change_pct: freightChange,
+        fuel_change_pct: fuelChange,
+        waiting_days_change: waitingChange,
+      };
+
+      const response = await fetch("http://127.0.0.1:8000/api/scenario", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const detail = await response.json().catch(() => null);
+        if (response.status === 405) {
+          throw new Error(
+            "The backend does not allow POST /api/scenario. Restart the updated FastAPI backend and confirm that main.py defines a POST scenario route."
+          );
+        }
+        throw new Error(
+          detail?.detail?.[0]?.msg ||
+          detail?.detail ||
+          `Scenario recalculation failed (HTTP ${response.status}).`
+        );
+      }
+
+      const result = await response.json();
+      setScenarioResults(result);
+    } catch (err) {
+      console.error(err);
+      setScenarioError(err.message || "Unable to recalculate scenario.");
+    } finally {
+      setScenarioLoading(false);
+    }
+  };
+
+  const resetScenario = () => {
+    setFreightChange(10);
+    setFuelChange(15);
+    setWaitingChange(2);
+    setScenarioResults(null);
+    setScenarioError("");
+  };
+
   useEffect(() => {
     analyzeVoyage();
   }, []);
+
+  const stressAnalysis =
+    scenarioResults?.stress_analysis ?? data?.scenarios?.stress_analysis;
+
+  const formatImpact = (value) =>
+    `${value > 0 ? "+" : ""}${value.toFixed(2)}%`;
+
+  const appliedInputs = stressAnalysis?.inputs ?? {
+    freight_change_pct: 10,
+    fuel_change_pct: 15,
+    waiting_days_change: 2,
+  };
 
   return (
     <div className="app">
@@ -1004,191 +1086,215 @@ function App() {
             <section className="panel">
 
               <div className="panel-header">
-
                 <div>
                   <h2>Scenario & Stress Analysis</h2>
-
                   <p>
-                    Evaluate the impact of adverse market and operational conditions
+                    Adjust market and operational assumptions to test their impact
+                    on voyage economics and the procurement recommendation.
                   </p>
                 </div>
-
               </div>
 
-              <div className="scenario-base">
+              <div className="scenario-controls">
+                <div className="scenario-control">
+                  <div className="scenario-control-heading">
+                    <label htmlFor="freight-change">FREIGHT RATE CHANGE</label>
+                    <strong>{freightChange > 0 ? "+" : ""}{freightChange}%</strong>
+                  </div>
+                  <input
+                    id="freight-change"
+                    type="range"
+                    min="-30"
+                    max="30"
+                    step="1"
+                    value={freightChange}
+                    onChange={(e) => setFreightChange(Number(e.target.value))}
+                  />
+                  <div className="scenario-range">
+                    <span>-30%</span>
+                    <span>+30%</span>
+                  </div>
+                </div>
 
-                <span>BASE CASE</span>
+                <div className="scenario-control">
+                  <div className="scenario-control-heading">
+                    <label htmlFor="fuel-change">FUEL PRICE CHANGE</label>
+                    <strong>{fuelChange > 0 ? "+" : ""}{fuelChange}%</strong>
+                  </div>
+                  <input
+                    id="fuel-change"
+                    type="range"
+                    min="-30"
+                    max="30"
+                    step="1"
+                    value={fuelChange}
+                    onChange={(e) => setFuelChange(Number(e.target.value))}
+                  />
+                  <div className="scenario-range">
+                    <span>-30%</span>
+                    <span>+30%</span>
+                  </div>
+                </div>
 
-                <strong>
-                  ${data.scenarios.stress_analysis.base.cost_per_tonne.toFixed(2)}/t
-                </strong>
-
-                <small>
-                  ${data.scenarios.stress_analysis.base.total_cost.toLocaleString(
-                    "en-US",
-                    {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    }
-                  )} total logistics cost
-                </small>
-
-              </div>
-
-              <div className="scenario-grid">
-
-                <div className="scenario-card">
-
-                  <span>FREIGHT +10%</span>
-
-                  <strong>
-                    $
-                    {data.scenarios.stress_analysis.freight_plus_10.cost_per_tonne.toFixed(
-                      2
-                    )}
-                    /t
-                  </strong>
-
+                <div className="scenario-control">
+                  <div className="scenario-control-heading">
+                    <label htmlFor="waiting-change">CHANGE IN WAITING TIME</label>
+                    <strong>{waitingChange > 0 ? "+" : ""}{waitingChange} days</strong>
+                  </div>
+                  <input
+                    id="waiting-change"
+                    type="range"
+                    min="-5"
+                    max="10"
+                    step="1"
+                    value={waitingChange}
+                    onChange={(e) => setWaitingChange(Number(e.target.value))}
+                  />
+                  <div className="scenario-range">
+                    <span>-5 days</span>
+                    <span>+10 days</span>
+                  </div>
                   <small>
-                    +{data.scenarios.stress_analysis.freight_plus_10.cost_impact_percent.toFixed(
-                      2
-                    )}
-                    % cost impact
+                    Adjusted waiting time cannot fall below zero.
                   </small>
-
                 </div>
-
-                <div className="scenario-card">
-
-                  <span>FUEL +15%</span>
-
-                  <strong>
-                    $
-                    {data.scenarios.stress_analysis.fuel_plus_15.cost_per_tonne.toFixed(
-                      2
-                    )}
-                    /t
-                  </strong>
-
-                  <small>
-                    +{data.scenarios.stress_analysis.fuel_plus_15.cost_impact_percent.toFixed(
-                      2
-                    )}
-                    % cost impact
-                  </small>
-
-                </div>
-
-                <div className="scenario-card">
-
-                  <span>CONGESTION +2 DAYS</span>
-
-                  <strong>
-                    $
-                    {data.scenarios.stress_analysis.congestion_plus_2.cost_per_tonne.toFixed(
-                      2
-                    )}
-                    /t
-                  </strong>
-
-                  <small>
-                    +{data.scenarios.stress_analysis.congestion_plus_2.cost_impact_percent.toFixed(
-                      2
-                    )}
-                    % cost impact
-                  </small>
-
-                </div>
-
               </div>
 
-              <div className="scenario-combined">
-
-                <div>
-
-                  <span>COMBINED MARKET STRESS</span>
-
-                  <strong>
-                    $
-                    {data.scenarios.stress_analysis.combined.cost_per_tonne.toFixed(
-                      2
-                    )}
-                    /t
-                  </strong>
-
-                </div>
-
-                <div className="scenario-impact">
-
-                  <strong>
-                    +{data.scenarios.stress_analysis.combined.cost_impact_percent.toFixed(
-                      2
-                    )}
-                    %
-                  </strong>
-
-                  <small>
-                    cost impact
-                  </small>
-
-                </div>
-
+              <div className="scenario-apply-row">
+                <button
+                  type="button"
+                  className="analyze-button scenario-apply-button"
+                  onClick={applyScenario}
+                  disabled={scenarioLoading || loading || !data?.scenario_inputs}
+                >
+                  {scenarioLoading ? "RECALCULATING SCENARIO..." : "APPLY SCENARIO"}
+                </button>
+                <button
+                  type="button"
+                  className="scenario-reset-button"
+                  onClick={resetScenario}
+                  disabled={scenarioLoading}
+                >
+                  RESET DEFAULTS
+                </button>
+                {scenarioError && (
+                  <p className="error-message" role="alert">{scenarioError}</p>
+                )}
               </div>
 
-              <div className="resilience">
+              {stressAnalysis && (
+                <>
+                  <div className="scenario-base">
+                    <span>BASE CASE · UNCHANGED</span>
+                    <strong>
+                      ${stressAnalysis.base.cost_per_tonne.toFixed(2)}/t
+                    </strong>
+                    <small>
+                      ${stressAnalysis.base.total_cost.toLocaleString("en-US", {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })} total logistics cost
+                    </small>
+                  </div>
 
-                <div className="resilience-header">
-                  <span>RECOMMENDATION RESILIENCE</span>
+                  <div className="scenario-grid">
+                    <div className="scenario-card">
+                      <span>FREIGHT {appliedInputs.freight_change_pct > 0 ? "+" : ""}{appliedInputs.freight_change_pct}%</span>
+                      <strong>
+                        ${stressAnalysis.freight_plus_10.cost_per_tonne.toFixed(2)}/t
+                      </strong>
+                      <small>
+                        {formatImpact(stressAnalysis.freight_plus_10.cost_impact_percent)}
+                        {" "}cost impact
+                      </small>
+                    </div>
 
-                  <strong>
-                    Base decision:{" "}
-                    {data.scenarios.stress_analysis.resilience.base_decision}
-                  </strong>
-                </div>
+                    <div className="scenario-card">
+                      <span>FUEL {appliedInputs.fuel_change_pct > 0 ? "+" : ""}{appliedInputs.fuel_change_pct}%</span>
+                      <strong>
+                        ${stressAnalysis.fuel_plus_15.cost_per_tonne.toFixed(2)}/t
+                      </strong>
+                      <small>
+                        {formatImpact(stressAnalysis.fuel_plus_15.cost_impact_percent)}
+                        {" "}cost impact
+                      </small>
+                    </div>
 
-                <div className="resilience-list">
+                    <div className="scenario-card">
+                      <span>
+                        WAITING TIME {appliedInputs.waiting_days_change > 0 ? "+" : ""}{appliedInputs.waiting_days_change} DAYS
+                      </span>
+                      <strong>
+                        ${stressAnalysis.congestion_plus_2.cost_per_tonne.toFixed(2)}/t
+                      </strong>
+                      <small>
+                        {formatImpact(stressAnalysis.congestion_plus_2.cost_impact_percent)}
+                        {" "}cost impact
+                      </small>
+                    </div>
+                  </div>
 
-                  {[
-                    ["freight_plus_10", "Freight +10%"],
-                    ["fuel_plus_15", "Fuel +15%"],
-                    ["congestion_plus_2", "Congestion +2 days"],
-                    ["combined", "Combined Stress"]
-                  ].map(([key, label]) => {
+                  <div className="scenario-combined">
+                    <div>
+                      <span>COMBINED SCENARIO</span>
+                      <strong>
+                        ${stressAnalysis.combined.cost_per_tonne.toFixed(2)}/t
+                      </strong>
+                    </div>
+                    <div className="scenario-impact">
+                      <strong>
+                        {formatImpact(stressAnalysis.combined.cost_impact_percent)}
+                      </strong>
+                      <small>cost impact</small>
+                    </div>
+                  </div>
 
-                    const scenario =
-                      data.scenarios.stress_analysis.resilience.scenarios[key];
+                  <div className="resilience">
+                    <div className="resilience-header">
+                      <span>RECOMMENDATION RESILIENCE</span>
+                      <strong>
+                        Base decision: {stressAnalysis.resilience.base_decision}
+                      </strong>
+                    </div>
 
-                    return (
-                      <div className="resilience-row" key={key}>
+                    <div className="resilience-list">
+                      {[
+                        ["freight_plus_10", `Freight ${appliedInputs.freight_change_pct > 0 ? "+" : ""}${appliedInputs.freight_change_pct}%`],
+                        ["fuel_plus_15", `Fuel ${appliedInputs.fuel_change_pct > 0 ? "+" : ""}${appliedInputs.fuel_change_pct}%`],
+                        ["congestion_plus_2", `Waiting time ${appliedInputs.waiting_days_change > 0 ? "+" : ""}${appliedInputs.waiting_days_change} days`],
+                        ["combined", "Combined scenario"],
+                      ].map(([key, label]) => {
+                        const scenario = stressAnalysis.resilience.scenarios[key];
 
-                        <div>
-                          <strong>{label}</strong>
+                        return (
+                          <div className="resilience-row" key={key}>
+                            <div>
+                              <strong>{label}</strong>
+                              <small>{scenario.stress_decision}</small>
+                            </div>
+                            <div
+                              className={
+                                scenario.decision_changed
+                                  ? "resilience-status changed"
+                                  : "resilience-status stable"
+                              }
+                            >
+                              {scenario.decision_changed
+                                ? "⚠ Decision changes"
+                                : "✓ Decision stable"}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
 
-                          <small>
-                            {scenario.stress_decision}
-                          </small>
-                        </div>
-
-                        <div
-                          className={
-                            scenario.decision_changed
-                              ? "resilience-status changed"
-                              : "resilience-status stable"
-                          }
-                        >
-                          {scenario.decision_changed
-                            ? "⚠ Decision changes"
-                            : "✓ Decision stable"}
-                        </div>
-
-                      </div>
-                    );
-                  })}
-
-                </div>
-
-              </div>
-
+                  <p className="scenario-note">
+                    These are user-defined stress-test assumptions, not statistically
+                    validated forecasts. Results update only after you apply the scenario.
+                  </p>
+                </>
+              )}
             </section>
 
             {/* EXPLANATION */}

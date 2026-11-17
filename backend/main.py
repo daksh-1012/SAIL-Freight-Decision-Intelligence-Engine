@@ -1,14 +1,9 @@
-import numpy as np
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, Field
 
 from decision_engine import run_decision
-from economics.contract_strategy import evaluate_contract_strategy
-from vessel_engine import find_feasible_vessels
 from forecasting.xgboost_forecast import forecast_future
-from economics.voyage_cost import calculate_voyage_cost
-from economics.optimization import risk_adjusted_timing
-from risk_engine import simulate_freight_risk
 from scenario_engine import build_scenarios
 
 
@@ -26,6 +21,29 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"]
 )
+
+
+class ScenarioRequest(BaseModel):
+    cargo_quantity: int
+    current_rate: float
+    forecast_7: float
+    forecast_14: float
+    distance_nm: float
+    vessel_speed: float
+    fuel_price: float
+    fuel_consumption: float
+    port_cost: float
+    waiting_days: float
+    demurrage_per_day: float
+    probability_7: float
+    probability_14: float
+
+    risk_7: float = 0
+    risk_14: float = 0
+
+    freight_change_pct: float = Field(default=10, ge=-30, le=30)
+    fuel_change_pct: float = Field(default=15, ge=-30, le=30)
+    waiting_days_change: float = Field(default=2, ge=-5, le=10)
 
 
 @app.get("/")
@@ -73,42 +91,6 @@ def get_decision(
     )
 
 
-@app.get("/api/scenario")
-def get_scenario(
-    cargo_quantity: int = 50000,
-    freight_rate: float = 19.00,
-    distance_nm: float = 3000,
-    vessel_speed: float = 14.5,
-    fuel_price: float = 600,
-    fuel_consumption: float = 35,
-    port_cost: float = 75000,
-    waiting_days: float = 1.2,
-    demurrage_per_day: float = 25000
-):
-
-    result = run_scenario(
-        cargo_quantity=cargo_quantity,
-        freight_rate=freight_rate,
-        distance_nm=distance_nm,
-        vessel_speed=vessel_speed,
-        fuel_price=fuel_price,
-        fuel_consumption=fuel_consumption,
-        port_cost=port_cost,
-        waiting_days=waiting_days,
-        demurrage_per_day=demurrage_per_day
-    )
-
-    return {
-        "inputs": {
-            "cargo_quantity": cargo_quantity,
-            "freight_rate": freight_rate,
-            "distance_nm": distance_nm,
-            "vessel_speed": vessel_speed,
-            "fuel_price": fuel_price,
-            "fuel_consumption": fuel_consumption,
-            "port_cost": port_cost,
-            "waiting_days": waiting_days,
-            "demurrage_per_day": demurrage_per_day
-        },
-        "result": result
-    }
+@app.post("/api/scenario")
+def run_scenario(request: ScenarioRequest):
+    return build_scenarios(**request.model_dump())
